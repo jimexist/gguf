@@ -7,10 +7,11 @@ license = "MIT"
 
 [dependencies]
 nom = { version = "7", features = ["alloc"] }
-log = { version = "0.4", optional = true }
+serde = { version = "1.0", features = ["derive"] }
+serde_yaml = { version = "0.9", optional = true }
 
 [features]
-bin = ["log"]
+bin = ["serde_yaml"]
 
 [[bin]]
 name = "gguf-info"

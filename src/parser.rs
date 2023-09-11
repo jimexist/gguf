@@ -1,4 +1,6 @@
-use crate::{GGUFHeader, GGUFMetadata, GGUFMetadataValue, GGUfMetadataValueType};
+use crate::{
+    GGUFHeader, GGUFMetadata, GGUFMetadataArrayValue, GGUFMetadataValue, GGUfMetadataValueType,
+};
 use nom::bytes::complete::take;
 use nom::combinator::{map, map_res};
 use nom::multi::count;
@@ -53,7 +55,12 @@ fn gguf_metadata_value(
                 let (i, value_type) = gguf_metadata_value_type(i)?;
                 let (i, len) = le_u64(i)?;
                 let (i, v) = count(gguf_metadata_value(value_type), len as usize)(i)?;
-                Ok((i, GGUFMetadataValue::Array(v)))
+                let value = GGUFMetadataValue::Array(GGUFMetadataArrayValue {
+                    value_type,
+                    len,
+                    value: v,
+                });
+                Ok((i, value))
             }
         }
     }
@@ -80,13 +87,7 @@ pub(crate) fn gguf_header(i: &[u8]) -> IResult<&[u8], GGUFHeader> {
     let (i, version) = le_u32(i)?;
     let (i, tensor_count) = le_u64(i)?;
     let (i, metadata_count) = le_u64(i)?;
-    let mut metadata = Vec::new();
-    let mut i = i;
-    for _ in 0..metadata_count {
-        let (i2, m) = gguf_metadata(i)?;
-        metadata.push(m);
-        i = i2;
-    }
+    let (i, metadata) = count(gguf_metadata, metadata_count as usize)(i)?;
     Ok((
         i,
         GGUFHeader {

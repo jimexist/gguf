@@ -1,9 +1,10 @@
 pub mod parser;
 use parser::gguf_header;
-use std::fmt;
+extern crate serde;
+use serde::ser::SerializeSeq;
 
 /// GGUF metadata value type
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(serde::Serialize, Clone, Copy, PartialEq)]
 pub enum GGUfMetadataValueType {
     /// The value is a 8-bit unsigned integer.
     Uint8 = 0,
@@ -57,7 +58,7 @@ impl TryFrom<u32> for GGUfMetadataValueType {
 }
 
 /// GGUF header
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq, serde::Serialize)]
 pub struct GGUFHeader {
     pub version: u32,
     pub tensor_count: u64,
@@ -72,15 +73,17 @@ impl GGUFHeader {
 }
 
 /// GGUF metadata
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq, serde::Serialize)]
 pub struct GGUFMetadata {
     pub key: String,
+    #[serde(rename = "type")]
     pub value_type: GGUfMetadataValueType,
     pub value: GGUFMetadataValue,
 }
 
 /// GGUF metadata value
-#[derive(PartialEq)]
+#[derive(PartialEq, serde::Serialize)]
+#[serde(untagged)]
 pub enum GGUFMetadataValue {
     Uint8(u8),
     Int8(i8),
@@ -94,25 +97,32 @@ pub enum GGUFMetadataValue {
     Float64(f64),
     Bool(bool),
     String(String),
-    Array(Vec<GGUFMetadataValue>),
+    Array(GGUFMetadataArrayValue),
 }
 
-impl fmt::Debug for GGUFMetadataValue {
-    /// display the short version for GGUF
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Uint16(v) => write!(f, "{}u16", v),
-            Self::Int16(v) => write!(f, "{}i16", v),
-            Self::Uint32(v) => write!(f, "{}u32", v),
-            Self::Int32(v) => write!(f, "{}i32", v),
-            Self::Float32(v) => write!(f, "{}f32", v),
-            Self::Uint64(v) => write!(f, "{}u64", v),
-            Self::Int64(v) => write!(f, "{}i64", v),
-            Self::Float64(v) => write!(f, "{}f64", v),
-            Self::Bool(v) => write!(f, "{}", v),
-            Self::String(v) => write!(f, "{}", v),
-            Self::Array(v) => write!(f, "{:?}", v),
-            _ => write!(f, "unknown"),
-        }
+#[derive(PartialEq, serde::Serialize)]
+pub struct GGUFMetadataArrayValue {
+    #[serde(rename = "type")]
+    pub value_type: GGUfMetadataValueType,
+    pub len: u64,
+    #[serde(serialize_with = "serialize_array")]
+    pub value: Vec<GGUFMetadataValue>,
+}
+
+/// serialize_array
+fn serialize_array<S>(v: &Vec<GGUFMetadataValue>, s: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    let len = v.len().min(3);
+    let has_more = v.len() > 3;
+    let mut seq = s.serialize_seq(Some(if has_more { 4 } else { len }))?;
+    for e in &v[..len] {
+        seq.serialize_element(e)?;
     }
+    if has_more {
+        let ellipse = format!("... and {} more items", v.len() - 3);
+        seq.serialize_element(&ellipse)?;
+    }
+    seq.end()
 }
