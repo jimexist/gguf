@@ -1,11 +1,11 @@
 use nom::bytes::complete::take;
+use nom::combinator::{map, map_res};
+use nom::multi::count;
 use nom::number::complete::{le_u32, le_u64, le_u8, *};
-use nom::{
-    bytes::complete::{tag},
-    IResult,
-};
+use nom::{bytes::complete::tag, IResult};
 
-#[derive(Debug, PartialEq)]
+/// GGUF metadata value type
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum GGUfMetadataValueType {
     /// The value is a 8-bit unsigned integer.
     Uint8 = 0,
@@ -35,9 +35,11 @@ pub enum GGUfMetadataValueType {
     Float64 = 12,
 }
 
-impl From<u32> for GGUfMetadataValueType {
-    fn from(item: u32) -> Self {
-        match item {
+impl TryFrom<u32> for GGUfMetadataValueType {
+    type Error = String;
+
+    fn try_from(item: u32) -> Result<Self, Self::Error> {
+        Ok(match item {
             0 => GGUfMetadataValueType::Uint8,
             1 => GGUfMetadataValueType::Int8,
             2 => GGUfMetadataValueType::Uint16,
@@ -51,11 +53,12 @@ impl From<u32> for GGUfMetadataValueType {
             10 => GGUfMetadataValueType::Uint64,
             11 => GGUfMetadataValueType::Int64,
             12 => GGUfMetadataValueType::Float64,
-            _ => panic!("invalid metadata type 0x{:x}", item),
-        }
+            _ => return Err(format!("invalid metadata type 0x{:x}", item)),
+        })
     }
 }
 
+/// GGUF metadata value
 #[derive(Debug, PartialEq)]
 pub enum GGUFMetadataValue {
     Uint8(u8),
@@ -73,6 +76,7 @@ pub enum GGUFMetadataValue {
     Array(Vec<GGUFMetadataValue>),
 }
 
+/// GGUF metadata
 #[derive(Debug, PartialEq)]
 pub struct GGUFMetadata {
     pub key: String,
@@ -80,6 +84,7 @@ pub struct GGUFMetadata {
     pub value: GGUFMetadataValue,
 }
 
+/// GGUF header
 #[derive(Debug, PartialEq)]
 pub struct GGUFHeader {
     pub version: u32,
@@ -87,94 +92,67 @@ pub struct GGUFHeader {
     pub metadata: Vec<GGUFMetadata>,
 }
 
+impl GGUFHeader {
+    pub fn read(data: &[u8]) -> Result<GGUFHeader, String> {
+        let (_, header) = parse_gguf_header(data).expect("failed to parse");
+        Ok(header)
+    }
+}
+
 fn gguf_string(i: &[u8]) -> IResult<&[u8], String> {
     let (i, len) = le_u64(i)?;
-    let (i, data) = take(len)(i)?;
-    // map utf error to parser error
-    let s = std::str::from_utf8(data).unwrap();
-    Ok((i, s.to_string()))
+    let (i, data) = map_res(take(len), std::str::from_utf8)(i)?;
+    Ok((i, data.to_string()))
 }
 
 fn magic(input: &[u8]) -> IResult<&[u8], &[u8]> {
     tag("GGUF")(input)
 }
 
-fn metadata_value(i: &[u8]) -> IResult<&[u8], (GGUfMetadataValueType, GGUFMetadataValue)> {
-    let (i, metadata_type) = le_u32(i)?;
-    // convert to enum
-    let metadata_type = GGUfMetadataValueType::from(metadata_type);
-    // parse all metadata value type
-    match metadata_type {
-        GGUfMetadataValueType::Uint8 => {
-            let (i, value) = le_u8(i)?;
-            Ok((i, (metadata_type, GGUFMetadataValue::Uint8(value))))
-        }
-        GGUfMetadataValueType::Int8 => {
-            let (i, value) = le_i8(i)?;
-            Ok((i, (metadata_type, GGUFMetadataValue::Int8(value))))
-        }
-        GGUfMetadataValueType::Uint16 => {
-            let (i, value) = le_u16(i)?;
-            Ok((i, (metadata_type, GGUFMetadataValue::Uint16(value))))
-        }
-        GGUfMetadataValueType::Int16 => {
-            let (i, value) = le_i16(i)?;
-            Ok((i, (metadata_type, GGUFMetadataValue::Int16(value))))
-        }
-        GGUfMetadataValueType::Uint32 => {
-            let (i, value) = le_u32(i)?;
-            Ok((i, (metadata_type, GGUFMetadataValue::Uint32(value))))
-        }
-        GGUfMetadataValueType::Int32 => {
-            let (i, value) = le_i32(i)?;
-            Ok((i, (metadata_type, GGUFMetadataValue::Int32(value))))
-        }
-        GGUfMetadataValueType::Float32 => {
-            let (i, value) = le_f32(i)?;
-            Ok((i, (metadata_type, GGUFMetadataValue::Float32(value))))
-        }
-        GGUfMetadataValueType::Uint64 => {
-            let (i, value) = le_u64(i)?;
-            Ok((i, (metadata_type, GGUFMetadataValue::Uint64(value))))
-        }
-        GGUfMetadataValueType::Int64 => {
-            let (i, value) = le_i64(i)?;
-            Ok((i, (metadata_type, GGUFMetadataValue::Int64(value))))
-        }
-        GGUfMetadataValueType::Float64 => {
-            let (i, value) = le_f64(i)?;
-            Ok((i, (metadata_type, GGUFMetadataValue::Float64(value))))
-        }
-        GGUfMetadataValueType::Bool => {
-            let (i, value) = le_u8(i)?;
-            let value = match value {
-                0 => false,
-                1 => true,
-                _ => panic!("invalid bool value"),
-            };
-            Ok((i, (metadata_type, GGUFMetadataValue::Bool(value))))
-        }
-        GGUfMetadataValueType::String => {
-            let (i, value) = gguf_string(i)?;
-            Ok((i, (metadata_type, GGUFMetadataValue::String(value))))
-        }
-        GGUfMetadataValueType::Array => {
-            let (i, len) = le_u64(i)?;
-            let mut values = Vec::new();
-            let mut i = i;
-            for _ in 0..len {
-                let (i2, (_metadata_type, value)) = metadata_value(i)?;
-                values.push(value);
-                i = i2;
+fn parse_gguf_metadata_value_type(i: &[u8]) -> IResult<&[u8], GGUfMetadataValueType> {
+    map_res(le_u32, GGUfMetadataValueType::try_from)(i)
+}
+
+fn parse_gguf_metadata_value(
+    value_type: GGUfMetadataValueType,
+) -> impl FnMut(&[u8]) -> IResult<&[u8], GGUFMetadataValue> {
+    move |i: &[u8]| {
+        // parse all metadata value type
+        match value_type {
+            GGUfMetadataValueType::Uint8 => map(le_u8, GGUFMetadataValue::Uint8)(i),
+            GGUfMetadataValueType::Int8 => map(le_i8, GGUFMetadataValue::Int8)(i),
+            GGUfMetadataValueType::Uint16 => map(le_u16, GGUFMetadataValue::Uint16)(i),
+            GGUfMetadataValueType::Int16 => map(le_i16, GGUFMetadataValue::Int16)(i),
+            GGUfMetadataValueType::Uint32 => map(le_u32, GGUFMetadataValue::Uint32)(i),
+            GGUfMetadataValueType::Int32 => map(le_i32, GGUFMetadataValue::Int32)(i),
+            GGUfMetadataValueType::Float32 => map(le_f32, GGUFMetadataValue::Float32)(i),
+            GGUfMetadataValueType::Uint64 => map(le_u64, GGUFMetadataValue::Uint64)(i),
+            GGUfMetadataValueType::Int64 => map(le_i64, GGUFMetadataValue::Int64)(i),
+            GGUfMetadataValueType::Float64 => map(le_f64, GGUFMetadataValue::Float64)(i),
+            GGUfMetadataValueType::Bool => map_res(le_u8, |b| {
+                if b == 0 {
+                    Ok(GGUFMetadataValue::Bool(false))
+                } else if b == 1 {
+                    Ok(GGUFMetadataValue::Bool(true))
+                } else {
+                    Err("invalid bool value".to_string())
+                }
+            })(i),
+            GGUfMetadataValueType::String => map(gguf_string, GGUFMetadataValue::String)(i),
+            GGUfMetadataValueType::Array => {
+                let (i, value_type) = parse_gguf_metadata_value_type(i)?;
+                let (i, len) = le_u64(i)?;
+                let (i, v) = count(parse_gguf_metadata_value(value_type), len as usize)(i)?;
+                Ok((i, GGUFMetadataValue::Array(v)))
             }
-            Ok((i, (metadata_type, GGUFMetadataValue::Array(values))))
         }
     }
 }
 
-fn parse_metadata(i: &[u8]) -> IResult<&[u8], GGUFMetadata> {
+fn parse_gguf_metadata(i: &[u8]) -> IResult<&[u8], GGUFMetadata> {
     let (i, key) = gguf_string(i)?;
-    let (i, (value_type, value)) = metadata_value(i)?;
+    let (i, value_type) = parse_gguf_metadata_value_type(i)?;
+    let (i, value) = parse_gguf_metadata_value(value_type)(i)?;
     Ok((
         i,
         GGUFMetadata {
@@ -185,7 +163,7 @@ fn parse_metadata(i: &[u8]) -> IResult<&[u8], GGUFMetadata> {
     ))
 }
 
-pub fn parse_gguf_header(i: &[u8]) -> IResult<&[u8], GGUFHeader> {
+fn parse_gguf_header(i: &[u8]) -> IResult<&[u8], GGUFHeader> {
     let (i, _) = magic(i)?;
     let (i, version) = le_u32(i)?;
     let (i, tensor_count) = le_u64(i)?;
@@ -193,7 +171,7 @@ pub fn parse_gguf_header(i: &[u8]) -> IResult<&[u8], GGUFHeader> {
     let mut metadata = Vec::new();
     let mut i = i;
     for _ in 0..metadata_count {
-        let (i2, m) = parse_metadata(i)?;
+        let (i2, m) = parse_gguf_metadata(i)?;
         metadata.push(m);
         i = i2;
     }
@@ -265,7 +243,18 @@ mod tests {
             0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3c, 0x75, 0x6e,
             0x6b, 0x3e, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3c, 0x73, 0x3e, 0x04,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3c, 0x2f, 0x73, 0x3e, 0x06, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x3c,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x3c, 0x30, 0x78, 0x30, 0x30, 0x3e, 0x06, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x3c, 0x30, 0x78, 0x30, 0x31, 0x3e, 0x06, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x3c, 0x30, 0x78, 0x30, 0x32, 0x3e, 0x06, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x3c, 0x30, 0x78, 0x30, 0x33, 0x3e, 0x06, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x3c, 0x30, 0x78, 0x30, 0x34, 0x3e, 0x06, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x3c, 0x30, 0x78, 0x30, 0x35, 0x3e, 0x06, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x3c, 0x30, 0x78, 0x30, 0x36, 0x3e, 0x06, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x3c, 0x30, 0x78, 0x30, 0x37, 0x3e, 0x06, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x3c, 0x30, 0x78, 0x30, 0x38, 0x3e, 0x06, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x3c, 0x30, 0x78, 0x30, 0x39, 0x3e, 0x06, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x3c, 0x30, 0x78, 0x30, 0x41, 0x3e, 0x06, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x3c, 0x30, 0x78, 0x30, 0x42, 0x3e, 0x06,
         ];
 
         let (_, result) = parse_gguf_header(data)?;

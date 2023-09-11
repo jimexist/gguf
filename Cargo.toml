@@ -6,7 +6,7 @@ edition = "2021"
 license = "MIT"
 
 [dependencies]
-nom = "7"
+nom = { version = "7", features = ["alloc"] }
 
 [[bin]]
 name = "gguf-info"
