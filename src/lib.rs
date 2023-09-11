@@ -1,3 +1,4 @@
+//! # GGUF file parsing and struct definitions
 pub mod parser;
 use parser::gguf_header;
 extern crate serde;

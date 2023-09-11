@@ -4,6 +4,10 @@ version = "0.0.1"
 description = "Parser and struct to handle GGUF files' header and metadata info"
 edition = "2021"
 license = "MIT"
+authors = ["Jiayu Liu <jiayu@hey.com>"]
+keywords = ["gguf", "parser", "metadata", "AI model"]
+repository = "https://github.com/Jimexist/gguf"
+homepage = "https://github.com/Jimexist/gguf"
 
 [dependencies]
 nom = { version = "7", features = ["alloc"] }
