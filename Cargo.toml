@@ -1,0 +1,10 @@
+[package]
+name = "gguf"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+nom = "7"
+
+[[bin]]
+name = "gguf-info"
