@@ -7,6 +7,11 @@ license = "MIT"
 
 [dependencies]
 nom = { version = "7", features = ["alloc"] }
+log = { version = "0.4", optional = true }
+
+[features]
+bin = ["log"]
 
 [[bin]]
 name = "gguf-info"
+required-features = ['bin']
