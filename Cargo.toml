@@ -1,6 +1,6 @@
 [package]
 name = "gguf"
-version = "0.0.1"
+version = "0.1.0"
 description = "Parser and struct to handle GGUF files' header and metadata info"
 edition = "2021"
 license = "MIT"
