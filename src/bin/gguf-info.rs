@@ -1,4 +1,4 @@
-use gguf::parser::GGUFHeader;
+use gguf::GGUFHeader;
 use std::env;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Seek};
