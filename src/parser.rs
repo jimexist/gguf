@@ -1,10 +1,8 @@
 use nom::bytes::complete::take;
 use nom::number::complete::{le_u32, le_u64, le_u8, *};
 use nom::{
-    bytes::complete::{tag, take_while_m_n},
-    combinator::map_res,
-    sequence::Tuple,
-    IResult, Parser,
+    bytes::complete::{tag},
+    IResult,
 };
 
 #[derive(Debug, PartialEq)]
@@ -53,7 +51,7 @@ impl From<u32> for GGUfMetadataValueType {
             10 => GGUfMetadataValueType::Uint64,
             11 => GGUfMetadataValueType::Int64,
             12 => GGUfMetadataValueType::Float64,
-            _ => panic!("invalid metadata type"),
+            _ => panic!("invalid metadata type 0x{:x}", item),
         }
     }
 }
@@ -191,10 +189,10 @@ pub fn parse_gguf_header(i: &[u8]) -> IResult<&[u8], GGUFHeader> {
     let (i, _) = magic(i)?;
     let (i, version) = le_u32(i)?;
     let (i, tensor_count) = le_u64(i)?;
-    let (i, _metadata_count) = le_u64(i)?;
+    let (i, metadata_count) = le_u64(i)?;
     let mut metadata = Vec::new();
     let mut i = i;
-    for _ in 0..3 {
+    for _ in 0..metadata_count {
         let (i2, m) = parse_metadata(i)?;
         metadata.push(m);
         i = i2;
