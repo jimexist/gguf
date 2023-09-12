@@ -13,9 +13,12 @@ homepage = "https://github.com/Jimexist/gguf"
 nom = { version = "7", features = ["alloc"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = { version = "0.9", optional = true }
+serde_json = { version = "1.0", optional = true }
+bytes = { version = "1.5", optional = true }
+clap = { version = "4", optional = true, features = ["derive"] }
 
 [features]
-bin = ["serde_yaml"]
+bin = ["serde_yaml", "serde_json", "bytes", "clap"]
 
 [[bin]]
 name = "gguf-info"

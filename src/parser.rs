@@ -2,11 +2,11 @@ use crate::{
     GGMLType, GGUFFile, GGUFHeader, GGUFMetadata, GGUFMetadataArrayValue, GGUFMetadataValue,
     GGUFTensorInfo, GGUfMetadataValueType,
 };
-use nom::bytes::complete::take;
+use nom::bytes::streaming::take;
 use nom::combinator::{map, map_res};
 use nom::multi::count;
-use nom::number::complete::{le_u32, le_u64, le_u8, *};
-use nom::{bytes::complete::tag, IResult};
+use nom::number::streaming::{le_u32, le_u64, le_u8, *};
+use nom::{bytes::streaming::tag, IResult};
 
 /// parse gguf string
 fn gguf_string(i: &[u8]) -> IResult<&[u8], String> {

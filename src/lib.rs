@@ -120,6 +120,7 @@ impl TryFrom<u32> for GGMLType {
 pub struct GGUFTensorInfo {
     pub name: String,
     pub dimensions: Vec<u64>,
+    #[serde(rename = "type")]
     pub tensor_type: GGMLType,
     pub offset: u64,
 }
@@ -131,9 +132,12 @@ pub struct GGUFFile {
 }
 
 impl GGUFFile {
-    pub fn read(buf: &[u8]) -> Result<GGUFFile, String> {
-        let (_, result) = gguf_file(buf).expect("failed to parse gguf file");
-        Ok(result)
+    pub fn read(buf: &[u8]) -> Result<Option<GGUFFile>, String> {
+        match gguf_file(buf) {
+            Ok((_, file)) => Ok(Some(file)),
+            Err(nom::Err::Incomplete(_)) => Ok(None),
+            Err(e) => Err(format!("failed to parse GGUF file: {:?}", e)),
+        }
     }
 }
 
