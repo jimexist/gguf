@@ -137,7 +137,18 @@ impl GGUFFile {
         match gguf_file(buf) {
             Ok((_, file)) => Ok(Some(file)),
             Err(nom::Err::Incomplete(_)) => Ok(None),
-            Err(e) => Err(format!("failed to parse GGUF file: {:?}", e)),
+            Err(e) => Err(format!(
+                "Failed to parse GGUF file, please check for file integrity: {:?}",
+                e.map_input(|i| {
+                    // print only the next few bytes as hex
+                    let len = i.len().min(16);
+                    let mut s = String::new();
+                    for b in &i[..len] {
+                        s.push_str(&format!("0x{:02x} ", b));
+                    }
+                    s
+                })
+            )),
         }
     }
 }
