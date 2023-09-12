@@ -1,6 +1,5 @@
 //! # GGUF file parsing and struct definitions
 pub mod parser;
-use nom::Err;
 use parser::gguf_file;
 extern crate serde;
 use serde::ser::SerializeSeq;
@@ -121,6 +120,7 @@ impl TryFrom<u32> for GGMLType {
 pub struct GGUFTensorInfo {
     pub name: String,
     pub dimensions: Vec<u64>,
+    #[serde(rename = "type")]
     pub tensor_type: GGMLType,
     pub offset: u64,
 }
