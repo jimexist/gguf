@@ -8,6 +8,7 @@ authors = ["Jiayu Liu <jiayu@hey.com>"]
 keywords = ["gguf", "parser", "metadata", "ai", "model"]
 repository = "https://github.com/Jimexist/gguf"
 homepage = "https://github.com/Jimexist/gguf"
+include = ["/src", "README.md"]
 
 [dependencies]
 nom = { version = "7", features = ["alloc"] }
