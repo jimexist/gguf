@@ -1,5 +1,9 @@
 name: Rust
 
+concurrency:
+  group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
+  cancel-in-progress: true
+
 on:
   push:
     branches: ["main"]
@@ -15,7 +19,15 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+
+      - name: Check format
+        run: cargo fmt --verbose --check
+
+      - name: Check lint
+        run: cargo clippy --verbose
+
       - name: Build
         run: cargo build --verbose
+
       - name: Run tests
         run: cargo test --verbose

@@ -1,5 +1,6 @@
 use crate::{
-    GGUFHeader, GGUFMetadata, GGUFMetadataArrayValue, GGUFMetadataValue, GGUfMetadataValueType,
+    GGMLType, GGUFFile, GGUFHeader, GGUFMetadata, GGUFMetadataArrayValue, GGUFMetadataValue,
+    GGUFTensorInfo, GGUfMetadataValueType,
 };
 use nom::bytes::complete::take;
 use nom::combinator::{map, map_res};
@@ -82,7 +83,7 @@ fn gguf_metadata(i: &[u8]) -> IResult<&[u8], GGUFMetadata> {
 }
 
 /// parse header
-pub(crate) fn gguf_header(i: &[u8]) -> IResult<&[u8], GGUFHeader> {
+fn gguf_header(i: &[u8]) -> IResult<&[u8], GGUFHeader> {
     let (i, _) = magic(i)?;
     let (i, version) = le_u32(i)?;
     let (i, tensor_count) = le_u64(i)?;
@@ -96,6 +97,31 @@ pub(crate) fn gguf_header(i: &[u8]) -> IResult<&[u8], GGUFHeader> {
             metadata,
         },
     ))
+}
+
+/// parse tensor info
+fn gguf_tensor_info(i: &[u8]) -> IResult<&[u8], GGUFTensorInfo> {
+    let (i, name) = gguf_string(i)?;
+    let (i, n_dimensions) = le_u32(i)?;
+    let (i, dimensions) = count(le_u64, n_dimensions as usize)(i)?;
+    let (i, tensor_type) = map_res(le_u32, GGMLType::try_from)(i)?;
+    let (i, offset) = le_u64(i)?;
+    Ok((
+        i,
+        GGUFTensorInfo {
+            name,
+            dimensions,
+            tensor_type,
+            offset,
+        },
+    ))
+}
+
+/// parse file
+pub(crate) fn gguf_file(i: &[u8]) -> IResult<&[u8], GGUFFile> {
+    let (i, header) = gguf_header(i)?;
+    let (i, tensors) = count(gguf_tensor_info, header.tensor_count as usize)(i)?;
+    Ok((i, GGUFFile { header, tensors }))
 }
 
 #[cfg(test)]

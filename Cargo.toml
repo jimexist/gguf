@@ -19,4 +19,4 @@ bin = ["serde_yaml"]
 
 [[bin]]
 name = "gguf-info"
-required-features = ['bin']
+required-features = ["bin"]

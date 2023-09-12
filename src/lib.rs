@@ -1,6 +1,6 @@
 //! # GGUF file parsing and struct definitions
 pub mod parser;
-use parser::gguf_header;
+use parser::gguf_file;
 extern crate serde;
 use serde::ser::SerializeSeq;
 
@@ -66,10 +66,74 @@ pub struct GGUFHeader {
     pub metadata: Vec<GGUFMetadata>,
 }
 
-impl GGUFHeader {
-    pub fn read(data: &[u8]) -> Result<GGUFHeader, String> {
-        let (_, header) = gguf_header(data).expect("failed to parse");
-        Ok(header)
+#[derive(PartialEq, Clone, Copy, serde::Serialize)]
+pub enum GGMLType {
+    GgmlF32 = 0,
+    GgmlF16 = 1,
+    GgmlQ4_0 = 2,
+    GgmlQ4_1 = 3,
+    GgmlQ5_0 = 6,
+    GgmlQ5_1 = 7,
+    GgmlQ8_0 = 8,
+    GgmlQ8_1 = 9,
+    GgmlQ2K = 10,
+    GgmlQ3K = 11,
+    GgmlQ4K = 12,
+    GgmlQ5K = 13,
+    GgmlQ6K = 14,
+    GgmlQ8K = 15,
+    GgmlI8 = 16,
+    GgmlI16 = 17,
+    GgmlI32 = 18,
+    GgmlCount = 19,
+}
+
+impl TryFrom<u32> for GGMLType {
+    type Error = String;
+
+    fn try_from(item: u32) -> Result<Self, Self::Error> {
+        Ok(match item {
+            0 => GGMLType::GgmlF32,
+            1 => GGMLType::GgmlF16,
+            2 => GGMLType::GgmlQ4_0,
+            3 => GGMLType::GgmlQ4_1,
+            6 => GGMLType::GgmlQ5_0,
+            7 => GGMLType::GgmlQ5_1,
+            8 => GGMLType::GgmlQ8_0,
+            9 => GGMLType::GgmlQ8_1,
+            10 => GGMLType::GgmlQ2K,
+            11 => GGMLType::GgmlQ3K,
+            12 => GGMLType::GgmlQ4K,
+            13 => GGMLType::GgmlQ5K,
+            14 => GGMLType::GgmlQ6K,
+            15 => GGMLType::GgmlQ8K,
+            16 => GGMLType::GgmlI8,
+            17 => GGMLType::GgmlI16,
+            18 => GGMLType::GgmlI32,
+            19 => GGMLType::GgmlCount,
+            _ => return Err(format!("invalid GGML type 0x{:x}", item)),
+        })
+    }
+}
+
+#[derive(PartialEq, serde::Serialize)]
+pub struct GGUFTensorInfo {
+    pub name: String,
+    pub dimensions: Vec<u64>,
+    pub tensor_type: GGMLType,
+    pub offset: u64,
+}
+
+#[derive(PartialEq, serde::Serialize)]
+pub struct GGUFFile {
+    pub header: GGUFHeader,
+    pub tensors: Vec<GGUFTensorInfo>,
+}
+
+impl GGUFFile {
+    pub fn read(buf: &[u8]) -> Result<GGUFFile, String> {
+        let (_, result) = gguf_file(buf).expect("failed to parse gguf file");
+        Ok(result)
     }
 }
 
