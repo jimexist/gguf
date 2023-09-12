@@ -1,4 +1,4 @@
-use gguf::GGUFHeader;
+use gguf::GGUFFile;
 use std::env;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
@@ -9,7 +9,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let f = File::open(arg)?;
         let mut reader = BufReader::with_capacity(8_000_000, f);
         reader.fill_buf()?;
-        let header = GGUFHeader::read(reader.buffer())?;
+        let header = GGUFFile::read(reader.buffer())?;
         println!("{}", serde_yaml::to_string(&header)?);
     }
     Ok(())
