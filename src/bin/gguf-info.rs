@@ -1,7 +1,7 @@
 use bytes::{BufMut, BytesMut};
 use clap::{Parser, ValueEnum};
 use comfy_table::Table;
-use gguf::{GGMLType, GGUFFile, GGUFMetadataValue, GGUfMetadataValueType};
+use gguf::{GGUFFile, GGUFMetadataValue};
 use std::borrow::Borrow;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
