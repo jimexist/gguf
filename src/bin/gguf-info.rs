@@ -1,6 +1,7 @@
 use bytes::{BufMut, BytesMut};
 use clap::{Parser, ValueEnum};
-use gguf::GGUFFile;
+use comfy_table::Table;
+use gguf::{GGUFFile, GGUFMetadataValue};
 use std::borrow::Borrow;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
@@ -10,6 +11,7 @@ use std::path::PathBuf;
 enum OutputFormat {
     Yaml,
     Json,
+    Table,
 }
 
 /// Simple program to greet a person
@@ -23,7 +25,7 @@ struct Args {
     #[arg(long, default_value_t = 1_000_000)]
     read_buffer_size: usize,
 
-    #[arg(short = 't', long, value_enum, default_value_t = OutputFormat::Yaml)]
+    #[arg(short = 't', long, value_enum, default_value_t = OutputFormat::Table)]
     output_format: OutputFormat,
 }
 
@@ -39,8 +41,62 @@ fn main() -> Result<(), E> {
         OutputFormat::Json => {
             println!("{}", serde_json::to_string_pretty(&read_file)?);
         }
+        OutputFormat::Table => {
+            let metadata = build_metadata_table(&read_file)?;
+            println!("Metadata:");
+            println!("{metadata}");
+            let tensor_info = build_tensor_info_table(&read_file)?;
+            println!("Tensors:");
+            println!("{tensor_info}");
+        }
     }
     Ok(())
+}
+
+fn build_metadata_table(read_file: &GGUFFile) -> Result<String, E> {
+    let mut table = Table::new();
+    table.set_header(vec![
+        "#".to_string(),
+        "Key".to_string(),
+        "Type".to_string(),
+        "Value".to_string(),
+    ]);
+    for (idx, metadata) in read_file.header.metadata.iter().enumerate() {
+        // write value type, but for array also include array length
+        let value_type_len_postfix = match &metadata.value {
+            GGUFMetadataValue::Array(array_value) => format!(" ({})", array_value.len),
+            _ => "".to_string(),
+        };
+        let value_type_col = format!("{:?}{}", metadata.value_type, value_type_len_postfix);
+        table.add_row(vec![
+            format!("{}", idx + 1),
+            metadata.key.clone(),
+            value_type_col,
+            format!("{:?}", metadata.value),
+        ]);
+    }
+    Ok(table.to_string())
+}
+
+fn build_tensor_info_table(read_file: &GGUFFile) -> Result<String, E> {
+    let mut table = Table::new();
+    table.set_header(vec![
+        "#".to_string(),
+        "Name".to_string(),
+        "Type".to_string(),
+        "Dimensions".to_string(),
+        "Offset".to_string(),
+    ]);
+    for (idx, tensor) in read_file.tensors.iter().enumerate() {
+        table.add_row(vec![
+            format!("{}", idx + 1),
+            tensor.name.clone(),
+            format!("{:?}", tensor.tensor_type),
+            format!("{:?}", tensor.dimensions),
+            format!("{}", tensor.offset),
+        ]);
+    }
+    Ok(table.to_string())
 }
 
 /// Read a gguf file by trying out different buffer sizes

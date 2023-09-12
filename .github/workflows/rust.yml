@@ -24,10 +24,10 @@ jobs:
         run: cargo fmt --verbose --check
 
       - name: Check lint
-        run: cargo clippy --verbose
+        run: cargo clippy --verbose --features bin
 
       - name: Build
-        run: cargo build --verbose
+        run: cargo build --verbose --features bin
 
       - name: Run tests
-        run: cargo test --verbose
+        run: cargo test --verbose --features bin

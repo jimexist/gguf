@@ -1,11 +1,12 @@
 //! # GGUF file parsing and struct definitions
 pub mod parser;
 use parser::gguf_file;
+use std::fmt;
 extern crate serde;
 use serde::ser::SerializeSeq;
 
 /// GGUF metadata value type
-#[derive(serde::Serialize, Clone, Copy, PartialEq)]
+#[derive(serde::Serialize, Debug, Clone, Copy, PartialEq)]
 pub enum GGUfMetadataValueType {
     /// The value is a 8-bit unsigned integer.
     Uint8 = 0,
@@ -66,26 +67,26 @@ pub struct GGUFHeader {
     pub metadata: Vec<GGUFMetadata>,
 }
 
-#[derive(PartialEq, Clone, Copy, serde::Serialize)]
+#[derive(PartialEq, Debug, Clone, Copy, serde::Serialize)]
 pub enum GGMLType {
-    GgmlF32 = 0,
-    GgmlF16 = 1,
-    GgmlQ4_0 = 2,
-    GgmlQ4_1 = 3,
-    GgmlQ5_0 = 6,
-    GgmlQ5_1 = 7,
-    GgmlQ8_0 = 8,
-    GgmlQ8_1 = 9,
-    GgmlQ2K = 10,
-    GgmlQ3K = 11,
-    GgmlQ4K = 12,
-    GgmlQ5K = 13,
-    GgmlQ6K = 14,
-    GgmlQ8K = 15,
-    GgmlI8 = 16,
-    GgmlI16 = 17,
-    GgmlI32 = 18,
-    GgmlCount = 19,
+    F32 = 0,
+    F16 = 1,
+    Q4_0 = 2,
+    Q4_1 = 3,
+    Q5_0 = 6,
+    Q5_1 = 7,
+    Q8_0 = 8,
+    Q8_1 = 9,
+    Q2K = 10,
+    Q3K = 11,
+    Q4K = 12,
+    Q5K = 13,
+    Q6K = 14,
+    Q8K = 15,
+    I8 = 16,
+    I16 = 17,
+    I32 = 18,
+    Count = 19,
 }
 
 impl TryFrom<u32> for GGMLType {
@@ -93,30 +94,30 @@ impl TryFrom<u32> for GGMLType {
 
     fn try_from(item: u32) -> Result<Self, Self::Error> {
         Ok(match item {
-            0 => GGMLType::GgmlF32,
-            1 => GGMLType::GgmlF16,
-            2 => GGMLType::GgmlQ4_0,
-            3 => GGMLType::GgmlQ4_1,
-            6 => GGMLType::GgmlQ5_0,
-            7 => GGMLType::GgmlQ5_1,
-            8 => GGMLType::GgmlQ8_0,
-            9 => GGMLType::GgmlQ8_1,
-            10 => GGMLType::GgmlQ2K,
-            11 => GGMLType::GgmlQ3K,
-            12 => GGMLType::GgmlQ4K,
-            13 => GGMLType::GgmlQ5K,
-            14 => GGMLType::GgmlQ6K,
-            15 => GGMLType::GgmlQ8K,
-            16 => GGMLType::GgmlI8,
-            17 => GGMLType::GgmlI16,
-            18 => GGMLType::GgmlI32,
-            19 => GGMLType::GgmlCount,
+            0 => GGMLType::F32,
+            1 => GGMLType::F16,
+            2 => GGMLType::Q4_0,
+            3 => GGMLType::Q4_1,
+            6 => GGMLType::Q5_0,
+            7 => GGMLType::Q5_1,
+            8 => GGMLType::Q8_0,
+            9 => GGMLType::Q8_1,
+            10 => GGMLType::Q2K,
+            11 => GGMLType::Q3K,
+            12 => GGMLType::Q4K,
+            13 => GGMLType::Q5K,
+            14 => GGMLType::Q6K,
+            15 => GGMLType::Q8K,
+            16 => GGMLType::I8,
+            17 => GGMLType::I16,
+            18 => GGMLType::I32,
+            19 => GGMLType::Count,
             _ => return Err(format!("invalid GGML type 0x{:x}", item)),
         })
     }
 }
 
-#[derive(PartialEq, serde::Serialize)]
+#[derive(PartialEq, Debug, serde::Serialize)]
 pub struct GGUFTensorInfo {
     pub name: String,
     pub dimensions: Vec<u64>,
@@ -169,7 +170,40 @@ pub enum GGUFMetadataValue {
     Array(GGUFMetadataArrayValue),
 }
 
-#[derive(PartialEq, serde::Serialize)]
+impl fmt::Debug for GGUFMetadataValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Uint8(v) => write!(f, "{}", v),
+            Self::Int8(v) => write!(f, "{}", v),
+            Self::Uint16(v) => write!(f, "{}", v),
+            Self::Int16(v) => write!(f, "{}", v),
+            Self::Uint32(v) => write!(f, "{}", v),
+            Self::Int32(v) => write!(f, "{}", v),
+            Self::Float32(v) => write!(f, "{}", v),
+            Self::Uint64(v) => write!(f, "{}", v),
+            Self::Int64(v) => write!(f, "{}", v),
+            Self::Float64(v) => write!(f, "{}", v),
+            Self::Bool(v) => write!(f, "{}", v),
+            Self::String(v) => write!(f, "{}", v),
+            Self::Array(v) => {
+                // write up to 3 values
+                let len = v.value.len().min(3);
+                for i in 0..len {
+                    write!(f, "{:?}", v.value[i])?;
+                    if i < len - 1 {
+                        write!(f, ", ")?;
+                    }
+                }
+                if v.value.len() > 3 {
+                    write!(f, ", ...")?;
+                }
+                Ok(())
+            }
+        }
+    }
+}
+
+#[derive(PartialEq, Debug, serde::Serialize)]
 pub struct GGUFMetadataArrayValue {
     #[serde(rename = "type")]
     pub value_type: GGUfMetadataValueType,
