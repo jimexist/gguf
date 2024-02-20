@@ -4,8 +4,7 @@
 [![Crates.io](https://img.shields.io/crates/d/gguf)](https://crates.io/crates/gguf)
 [![docs.rs](https://img.shields.io/docsrs/gguf)](https://docs.rs/gguf/)
 
-
-A small utility library for parsing [GGUF](https://github.com/philpax/ggml/blob/gguf-spec/docs/gguf.md) file info. See also [GGML](https://github.com/ggerganov/ggml) library.
+A small utility library for parsing [GGUF](https://github.com/ggerganov/ggml/blob/master/docs/gguf.md) file info. See also [GGML](https://github.com/ggerganov/ggml) library.
 
 ## Running locally
 
