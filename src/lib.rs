@@ -224,7 +224,7 @@ pub struct GGUFMetadataArrayValue {
 }
 
 /// serialize_array
-fn serialize_array<S>(v: &Vec<GGUFMetadataValue>, s: S) -> Result<S::Ok, S::Error>
+fn serialize_array<S>(v: &[GGUFMetadataValue], s: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {
