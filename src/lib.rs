@@ -1,6 +1,6 @@
 //! # GGUF file parsing and struct definitions
 pub mod parser;
-use parser::gguf_file;
+use parser::{gguf_file, gguf_header};
 use std::fmt;
 extern crate serde;
 use serde::ser::SerializeSeq;
@@ -65,6 +65,27 @@ pub struct GGUFHeader {
     pub version: u32,
     pub tensor_count: u64,
     pub metadata: Vec<GGUFMetadata>,
+}
+
+impl GGUFHeader {
+    pub fn read(buf: &[u8]) -> Result<Option<GGUFHeader>, String> {
+        match gguf_header(buf) {
+            Ok((_, header)) => Ok(Some(header)),
+            Err(nom::Err::Incomplete(_)) => Ok(None),
+            Err(e) => Err(format!(
+                "Failed to parse GGUF header, please check for file integrity: {:?}",
+                e.map_input(|i| {
+                    // print only the next few bytes as hex
+                    let len = i.len().min(16);
+                    let mut s = String::new();
+                    for b in &i[..len] {
+                        s.push_str(&format!("0x{:02x} ", b));
+                    }
+                    s
+                })
+            )),
+        }
+    }
 }
 
 #[derive(PartialEq, Debug, Clone, Copy, serde::Serialize)]

@@ -83,7 +83,7 @@ fn gguf_metadata(i: &[u8]) -> IResult<&[u8], GGUFMetadata> {
 }
 
 /// parse header
-fn gguf_header(i: &[u8]) -> IResult<&[u8], GGUFHeader> {
+pub(crate) fn gguf_header(i: &[u8]) -> IResult<&[u8], GGUFHeader> {
     let (i, _) = magic(i)?;
     let (i, version) = le_u32(i)?;
     let (i, tensor_count) = le_u64(i)?;
