@@ -1,9 +1,8 @@
 //! # GGUF file parsing and struct definitions
 pub mod parser;
 use parser::{gguf_file, gguf_header};
-use std::fmt;
-extern crate serde;
 use serde::ser::SerializeSeq;
+use std::fmt;
 
 /// GGUF metadata value type
 #[derive(serde::Serialize, Debug, Clone, Copy, PartialEq)]
@@ -184,7 +183,7 @@ pub struct GGUFMetadata {
 }
 
 /// GGUF metadata value
-#[derive(PartialEq, serde::Serialize)]
+#[derive(Clone, PartialEq, serde::Serialize)]
 #[serde(untagged)]
 pub enum GGUFMetadataValue {
     Uint8(u8),
@@ -235,7 +234,7 @@ impl fmt::Debug for GGUFMetadataValue {
     }
 }
 
-#[derive(PartialEq, Debug, serde::Serialize)]
+#[derive(Clone, PartialEq, Debug, serde::Serialize)]
 pub struct GGUFMetadataArrayValue {
     #[serde(rename = "type")]
     pub value_type: GGUfMetadataValueType,
